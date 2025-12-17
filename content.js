@@ -26,16 +26,43 @@
         "GET" === t && delete o.body;
         return await fetch(e, o).then((e => e.json()))
     };
-    window.addEventListener("pws::get-dom-selectors", (async function(t) {
-        const {
-            name: n
-        } = t.detail;
-        o(`${e}/welcome/domSelectorsCrm`).then((e => {
-            a(n, [e])
-        })).catch((e => {
-            a(n, [{}])
-        }))
-    })), window.addEventListener("pws::get-general-data", (async function(t) {
+    // CÓDIGO NUEVO (QUEMADO)
+window.addEventListener("pws::get-dom-selectors", (async function(t) {
+    const { name: n } = t.detail;
+
+    // Aquí pegamos los selectores directamente para no pedirlos a internet
+    const misSelectores = {
+        side_pane: "#pane-side",
+        chat_list: "[aria-label='Chat list']",
+        recent_messages: "[data-testid]>div:nth-child(2)>div:nth-child(2)>div>span",
+        side_pane_contact_names: "[data-testid]>div:nth-child(2)>div:nth-child(1)>div span[title]",
+        side_pane_contact_photos: "[data-testid]>div:nth-child(1)",
+        main_panel: "#main",
+        footer: "footer",
+        main_panel_contact_names: "#main header div[role=button] span[title]",
+        main_panel_contact_photos: "#main header>div[role=button]:nth-child(1)",
+        conversation_messages_in: ".message-in",
+        conversation_messages_out: ".message-out",
+        svg_container: "span[data-icon]",
+        like_button_id: "like-button",
+        voice_record_button: "button[aria-label='Voice message']",
+        message_input: "#main > footer .copyable-text.selectable-text",
+        send_button: "#main > footer button > span[data-icon='send']",
+        status_button: 'div[data-testid="menu-bar-status"]',
+        add_chat_button_id: "add-chat-button",
+        chat_folders_tab_id: "chat-folders",
+        search_box_container: "#side .uwk68",
+        search_button: "#main header ._2cNrC",
+        user_info_button_id: "user-info-button",
+        group_export_button_id: "group-export-button",
+        business_indicator_button_id: "business-indicator",
+        quick_label_button_id: "label-chat",
+        quick_replies_id: "quick-replies"
+    };
+
+    // Enviamos los datos locales inmediatamente usando la función 'a' original
+    a(n, [misSelectores]); 
+})), window.addEventListener("pws::get-general-data", (async function(t) {
         const {
             name: n
         } = t.detail;
