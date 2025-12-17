@@ -31,7 +31,7 @@
       "32": "/images/main-icon.png",
       "48": "/images/main-icon.png"
    },
-   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAo+2xXR4K40J6g350by0NFYtJZDqlMZCiIr4Vm7XN2bO4WOrAWxUSRMNv9H6/1BnlFqmF5WrRwQPAwaXxgPaqktbE59g1fVKL2w7nt3nDOuSXQJMc4IzBYKIIAvcIVhJoG1zfe0juzLKIxbnDLf3ST4ZKPMfqQweFXPe2mrL1XaFvXl62zl4t+vC0MXIKAo3ko6nyD2ZCalwk1Ng3jKjRFwX0KksGSsKAhm5XD3lahpQWtO8PrME4Jj3tyaiciTXgAWOkp3wIngKerhAozGaZDAIZycxnFLwsDQj7KS4iyp2HIsE5oD5MPDuKJYoI6W0YQic1+x7/nQ/GY3ux9yFPrwIDAQAB",
+   "key": "",
    "manifest_version": 3,
    "name": "ApeMasivo",
    "permissions": [ "tabs", "storage", "scripting", "activeTab", "unlimitedStorage" ],
