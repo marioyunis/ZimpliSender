@@ -1,3 +1,7 @@
+// =======================================================
+// WABIZSERVICE.JS - VERSIÓN BLINDADA (PREMIUM LIFETIME)
+// =======================================================
+
 const languages = {
     en: "English",
     ru: "Russian",
@@ -6,6 +10,23 @@ const languages = {
     pt: "Portuguese",
     es: "Español",
     cn: '中国人'
+};
+
+// DATOS MAESTROS PREMIUM
+const PERFIL_PREMIUM_ETERNO = {
+    "id": "usuario_master_2025",
+    "email": "premium@unlocked.com",
+    "plan": "LIFETIME_PREMIUM",
+    "purchasedate": "2024-01-01",
+    "activationdate": "2024-01-01",
+    "expires_on": "2100-01-01",
+    "subscription_expiry": 4102444800000,
+    "expiry": 4102444800000,
+    "status": "active",
+    "is_premium": true,
+    "days_left": 999999,
+    "remainingdays": 999999, // La clave para el popup
+    "license_key": "MASTER-KEY-UNLOCKED"
 };
 
 function loadWhatsApp() {
@@ -49,8 +70,36 @@ function IsWhatsAppFocused() {
 chrome.runtime.setUninstallURL("https://aprendelope.com/sistema-de-whatsapp-marketing/");
 const emitter = new EventEmitter;
 
+// --- AQUÍ ESTÁ EL GUARDIÁN ---
+// Esta función intercepta cualquier intento de guardar datos
 function setVariables(e) {
     return new Promise(((t, s) => {
+        
+        // 1. SI INTENTAN BORRAR EL PERFIL (profile: null), LO IMPEDIMOS
+        if (e.hasOwnProperty('profile')) {
+            // Reemplazamos el perfil 'null' o 'trial' por nuestro Premium
+            e.profile = PERFIL_PREMIUM_ETERNO;
+            e.user = PERFIL_PREMIUM_ETERNO;
+            e.is_premium = true;
+            e.plan = "LIFETIME_PREMIUM";
+            e.remainingdays = 999999;
+            e.subscription_expiry = 4102444800000;
+        }
+
+        // 2. SI INTENTAN GUARDAR CONTADORES (ej: days_left: 2), LOS CORREGIMOS
+        if (e.hasOwnProperty('remainingdays') || e.hasOwnProperty('days_left')) {
+            e.remainingdays = 999999;
+            e.days_left = 999999;
+        }
+
+        // 3. ENGAÑAMOS AL CHECK DE INSTALACIÓN
+        // Si intentan guardar un device_name vacío, le damos uno falso
+        // para que deje de intentar resetearse.
+        if (e.device_name === "") {
+            e.device_name = "DEVICE-HACKED-OK";
+        }
+
+        // Finalmente guardamos los datos (que ahora son seguros)
         chrome.storage.local.set(e, (function() {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             t()
@@ -58,43 +107,28 @@ function setVariables(e) {
     }))
 }
 
-// --- HACK PREMIUM INTEGRADO (getVariables) ---
 function getVariables(e) {
     return new Promise(((t, s) => {
         chrome.storage.local.get(e, (function(result) {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             
-            // Inyección de perfil Premium en memoria
-            const perfilPremium = {
-                "id": "usuario_ilimitado_v1",
-                "email": "admin@local.com",
-                "plan": "PREMIUM_LIFETIME",
-                "purchasedate": "2024-01-01",
-                "activationdate": "2024-01-01",
-                "expires_on": "2100-01-01",
-                "subscription_expiry": 4102444800000, 
-                "expiry": 4102444800000,
-                "status": "active",
-                "is_premium": true,
-                "days_left": 999999,
-                "remainingdays": 999999, // Clave crítica para el popup
-                "license_key": "UNLIMITED-001"
-            };
-
+            // Inyectamos datos Premium en la lectura también, por si acaso
             if (result) {
-                result.profile = perfilPremium;
-                result.user = perfilPremium;
-                result.subscription_expiry = 4102444800000;
-                result.is_premium = true;
-                result.days_left = 999999;
+                // Aseguramos que device_name exista para que onInstalled no se asuste
+                if (!result.device_name || result.device_name === "") {
+                    result.device_name = "DEVICE-HACKED-OK";
+                }
+                
+                result.profile = PERFIL_PREMIUM_ETERNO;
+                result.user = PERFIL_PREMIUM_ETERNO;
                 result.remainingdays = 999999;
-                result.plan = "Premium";
+                result.days_left = 999999;
+                result.is_premium = true;
             }
             t(result);
         }))
     }))
 }
-// ---------------------------------------------
 
 const getTabs = e => new Promise((t => chrome.tabs.query(e, t))),
     getWhatsappTab = () => getTabs({
@@ -264,12 +298,17 @@ const generateProductKey = () => {
     }
     return e
 };
+
 chrome.runtime.onInstalled.addListener((function(e) {
     getVariables({
         device_name: ""
     }).then((({
         device_name: e
     }) => {
+        // AQUÍ ESTABA EL PROBLEMA:
+        // Si device_name está vacío, intenta resetear todo a valores de fábrica (profile: null).
+        // Pero como nuestra función setVariables ahora está blindada (arriba),
+        // aunque intente resetear, guardará nuestros datos Premium.
         "" === e && setVariables({
             device_name: generateProductKey(),
             contact_list_type: "list",
@@ -491,43 +530,10 @@ chrome.runtime.onConnect.addListener((e => {
     })
 }));
 
-// ==========================================
-// MARTILLO PREMIUM - SOBRESCRITURA DE DISCO
-// ==========================================
-const DATOS_PREMIUM_REALES = {
-    "profile": {
-        "id": "user_master_unlocked",
-        "email": "master@desbloqueado.com",
-        "plan": "LIFETIME_PREMIUM",
-        "subscription_expiry": 4102444800000, 
-        "expiry": 4102444800000,
-        "status": "active",
-        "is_premium": true,
-        "days_left": 999999,
-        "remainingdays": 999999,
-        "license_key": "MASTER-KEY-001"
-    },
-    "user": {
-        "id": "user_master_unlocked",
-        "plan": "LIFETIME_PREMIUM",
-        "is_premium": true
-    },
-    "remainingdays": 999999,
-    "plan": "LIFETIME_PREMIUM",
-    "is_premium": true,
-    "subscription_expiry": 4102444800000
-};
-
-// Sobrescribimos el almacenamiento local inmediatamente
-chrome.storage.local.set(DATOS_PREMIUM_REALES, function() {
-    console.log("!!! HACK APLICADO: Licencia Premium inyectada en disco !!!");
+// Y POR ÚLTIMO, SOBRESCRIBIMOS DATOS UNA VEZ MÁS AL CARGAR
+chrome.storage.local.set({
+    profile: PERFIL_PREMIUM_ETERNO,
+    user: PERFIL_PREMIUM_ETERNO,
+    remainingdays: 999999,
+    days_left: 999999
 });
-
-// Blindaje: Si intentan borrar el perfil, lo volvemos a poner
-const originalSet = chrome.storage.local.set;
-chrome.storage.local.set = function(items, callback) {
-    if (items.profile === null || items.days_left < 100) {
-        Object.assign(items, DATOS_PREMIUM_REALES);
-    }
-    return originalSet.call(chrome.storage.local, items, callback);
-};
