@@ -1,5 +1,5 @@
 // =======================================================
-// WABIZSERVICE.JS - VERSIÓN BLINDADA (PREMIUM LIFETIME)
+// WABIZSERVICE.JS - VERSIÓN VIGILANTE (AUTO-HEALING)
 // =======================================================
 
 const languages = {
@@ -12,7 +12,7 @@ const languages = {
     cn: '中国人'
 };
 
-// DATOS MAESTROS PREMIUM
+// --- DEFINICIÓN DEL PERFIL PREMIUM MAESTRO ---
 const PERFIL_PREMIUM_ETERNO = {
     "id": "usuario_master_2025",
     "email": "premium@unlocked.com",
@@ -25,7 +25,7 @@ const PERFIL_PREMIUM_ETERNO = {
     "status": "active",
     "is_premium": true,
     "days_left": 999999,
-    "remainingdays": 999999, // La clave para el popup
+    "remainingdays": 999999,
     "license_key": "MASTER-KEY-UNLOCKED"
 };
 
@@ -70,36 +70,17 @@ function IsWhatsAppFocused() {
 chrome.runtime.setUninstallURL("https://aprendelope.com/sistema-de-whatsapp-marketing/");
 const emitter = new EventEmitter;
 
-// --- AQUÍ ESTÁ EL GUARDIÁN ---
-// Esta función intercepta cualquier intento de guardar datos
 function setVariables(e) {
     return new Promise(((t, s) => {
+        // Interceptamos escrituras locales también
+        if (e.profile || e.remainingdays) {
+             e.profile = PERFIL_PREMIUM_ETERNO;
+             e.user = PERFIL_PREMIUM_ETERNO;
+             e.remainingdays = 999999;
+             e.days_left = 999999;
+             e.is_premium = true;
+        }
         
-        // 1. SI INTENTAN BORRAR EL PERFIL (profile: null), LO IMPEDIMOS
-        if (e.hasOwnProperty('profile')) {
-            // Reemplazamos el perfil 'null' o 'trial' por nuestro Premium
-            e.profile = PERFIL_PREMIUM_ETERNO;
-            e.user = PERFIL_PREMIUM_ETERNO;
-            e.is_premium = true;
-            e.plan = "LIFETIME_PREMIUM";
-            e.remainingdays = 999999;
-            e.subscription_expiry = 4102444800000;
-        }
-
-        // 2. SI INTENTAN GUARDAR CONTADORES (ej: days_left: 2), LOS CORREGIMOS
-        if (e.hasOwnProperty('remainingdays') || e.hasOwnProperty('days_left')) {
-            e.remainingdays = 999999;
-            e.days_left = 999999;
-        }
-
-        // 3. ENGAÑAMOS AL CHECK DE INSTALACIÓN
-        // Si intentan guardar un device_name vacío, le damos uno falso
-        // para que deje de intentar resetearse.
-        if (e.device_name === "") {
-            e.device_name = "DEVICE-HACKED-OK";
-        }
-
-        // Finalmente guardamos los datos (que ahora son seguros)
         chrome.storage.local.set(e, (function() {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             t()
@@ -112,18 +93,17 @@ function getVariables(e) {
         chrome.storage.local.get(e, (function(result) {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             
-            // Inyectamos datos Premium en la lectura también, por si acaso
+            // Inyectamos datos Premium en la lectura
             if (result) {
-                // Aseguramos que device_name exista para que onInstalled no se asuste
                 if (!result.device_name || result.device_name === "") {
                     result.device_name = "DEVICE-HACKED-OK";
                 }
-                
                 result.profile = PERFIL_PREMIUM_ETERNO;
                 result.user = PERFIL_PREMIUM_ETERNO;
                 result.remainingdays = 999999;
                 result.days_left = 999999;
                 result.is_premium = true;
+                result.plan = "LIFETIME_PREMIUM";
             }
             t(result);
         }))
@@ -139,7 +119,6 @@ const getTabs = e => new Promise((t => chrome.tabs.query(e, t))),
     reloadTab = e => new Promise((t => chrome.tabs.reload(e, t))),
     getLanguage = () => {
         console.log("in background");
-        
         Promise.all([fetch("http://ip-api.com/json").then((e => e.json())), fetch("/countries.json").then((e => e.json()))]).then((([e, t]) => {
             let s = t.filter((t => t.alpha2 === e.countryCode))[0];
             if (!s) return setVariables({
@@ -299,19 +278,63 @@ const generateProductKey = () => {
     return e
 };
 
+// ----------------------------------------------------
+// EL VIGILANTE: MONITOR DE CAMBIOS (CÓDIGO NUEVO)
+// ----------------------------------------------------
+// Si CUALQUIER script (popup, content, etc) cambia los datos
+// a algo que no sea Premium, lo revertimos inmediatamente.
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local') {
+        let revertir = false;
+        
+        // 1. ¿Alguien tocó el perfil?
+        if (changes.profile) {
+            const nuevo = changes.profile.newValue;
+            // Si lo pusieron en null, undefined, o le quitaron el premium
+            if (!nuevo || !nuevo.is_premium || nuevo.days_left < 9000) {
+                console.log("!!! INTENTO DE BORRADO DE LICENCIA DETECTADO Y BLOQUEADO !!!");
+                revertir = true;
+            }
+        }
+        
+        // 2. ¿Alguien tocó los días restantes?
+        if (changes.remainingdays) {
+            if (!changes.remainingdays.newValue || changes.remainingdays.newValue < 9000) {
+                 console.log("!!! INTENTO DE CAMBIO DE DÍAS DETECTADO Y BLOQUEADO !!!");
+                 revertir = true;
+            }
+        }
+
+        // SI DETECTAMOS SABOTAJE, RESTAURAMOS TODO
+        if (revertir) {
+            chrome.storage.local.set({
+                profile: PERFIL_PREMIUM_ETERNO,
+                user: PERFIL_PREMIUM_ETERNO,
+                remainingdays: 999999,
+                days_left: 999999,
+                is_premium: true,
+                plan: "LIFETIME_PREMIUM"
+            });
+        }
+    }
+});
+// ----------------------------------------------------
+
 chrome.runtime.onInstalled.addListener((function(e) {
     getVariables({
         device_name: ""
     }).then((({
         device_name: e
     }) => {
-        // AQUÍ ESTABA EL PROBLEMA:
-        // Si device_name está vacío, intenta resetear todo a valores de fábrica (profile: null).
-        // Pero como nuestra función setVariables ahora está blindada (arriba),
-        // aunque intente resetear, guardará nuestros datos Premium.
         "" === e && setVariables({
             device_name: generateProductKey(),
             contact_list_type: "list",
+            // ... (resto de valores iniciales) ...
+            // FORZAMOS PREMIUM EN LA INSTALACIÓN TAMBIÉN
+            profile: PERFIL_PREMIUM_ETERNO,
+            remainingdays: 999999,
+            is_premium: true,
+            // ...
             list_recipients: [],
             list_country_code: "00",
             group_recipients: [],
@@ -423,6 +446,7 @@ chrome.runtime.onInstalled.addListener((function(e) {
         })
     })), loadWhatsApp()
 }));
+
 const handlePopupScriptMessage = t => {
         if ("pws::invoke-promise" === t.type) try {
             globalThis[t.promise](...t.arguments || []).then((e => sendMessageToPopup({
@@ -530,10 +554,11 @@ chrome.runtime.onConnect.addListener((e => {
     })
 }));
 
-// Y POR ÚLTIMO, SOBRESCRIBIMOS DATOS UNA VEZ MÁS AL CARGAR
+// CARGA INICIAL: FORZAMOS EL PERFIL
 chrome.storage.local.set({
     profile: PERFIL_PREMIUM_ETERNO,
     user: PERFIL_PREMIUM_ETERNO,
     remainingdays: 999999,
-    days_left: 999999
+    days_left: 999999,
+    is_premium: true
 });
