@@ -58,11 +58,40 @@ function setVariables(e) {
     }))
 }
 
+// CÓDIGO NUEVO (COPIA Y PEGA ESTO REEMPLAZANDO LA FUNCIÓN ANTERIOR)
 function getVariables(e) {
     return new Promise(((t, s) => {
-        chrome.storage.local.get(e, (function(e) {
+        chrome.storage.local.get(e, (function(result) {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
-            t(e)
+            
+            // --- INICIO DEL HACK PREMIUM ---
+            // Forzamos un perfil Premium válido hasta el año 2100
+            // Usamos varios nombres de variables comunes para asegurar que le atinamos a la correcta
+            const perfilPremium = {
+                "id": "user_hack_premium",
+                "email": "premium@ilimitado.com",
+                "plan": "premium",           // Clave para funciones pro
+                "subscription_expiry": 4102444800000, // Fecha timestamp: 01/01/2100
+                "expiry": 4102444800000,     // Redundancia
+                "expire_at": 4102444800000,  // Redundancia
+                "status": "active",
+                "is_premium": true,
+                "days_left": 99999,
+                "license_key": "LIBRE-DE-FABRICA"
+            };
+
+            // Si el sistema pide el perfil o cualquier dato, se lo inyectamos
+            if (result) {
+                result.profile = perfilPremium;
+                result.user = perfilPremium; // Por si acaso usa 'user' en vez de 'profile'
+                
+                // Forzar fecha de expiración en la raíz por si acaso
+                result.subscription_expiry = 4102444800000; 
+                result.is_premium = true;
+            }
+            // --- FIN DEL HACK PREMIUM ---
+
+            t(result);
         }))
     }))
 }
