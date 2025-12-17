@@ -1,0 +1,44 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "/images/main-icon.png",
+         "16": "/images/main-icon.png",
+         "32": "/images/main-icon.png",
+         "48": "/images/main-icon.png"
+      },
+      "default_popup": "popup.html",
+      "default_title": "ApeMasivo 3.0"
+   },
+   "background": {
+      "service_worker": "wabizservice.js"
+   },
+   "content_scripts": [ {
+      "js": [ "content.js" ],
+      "matches": [ "https://web.whatsapp.com/*" ],
+      "run_at": "document_end"
+   } ],
+   "content_security_policy": {
+      "connect-src": "https://wabiz.in/"
+   },
+   "description": "Envia mensajes masivos con poco riesgo de bloqueo, sistema Desarrollado por AprendeloPe EIRL",
+   "externally_connectable": {
+      "matches": [ "https://web.whatsapp.com/*" ]
+   },
+   "host_permissions": [ "https://web.whatsapp.com/*", "https://wabiz.in/*", "http://ip-api.com/*" ],
+   "icons": {
+      "128": "/images/main-icon.png",
+      "16": "/images/main-icon.png",
+      "32": "/images/main-icon.png",
+      "48": "/images/main-icon.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAo+2xXR4K40J6g350by0NFYtJZDqlMZCiIr4Vm7XN2bO4WOrAWxUSRMNv9H6/1BnlFqmF5WrRwQPAwaXxgPaqktbE59g1fVKL2w7nt3nDOuSXQJMc4IzBYKIIAvcIVhJoG1zfe0juzLKIxbnDLf3ST4ZKPMfqQweFXPe2mrL1XaFvXl62zl4t+vC0MXIKAo3ko6nyD2ZCalwk1Ng3jKjRFwX0KksGSsKAhm5XD3lahpQWtO8PrME4Jj3tyaiciTXgAWOkp3wIngKerhAozGaZDAIZycxnFLwsDQj7KS4iyp2HIsE5oD5MPDuKJYoI6W0YQic1+x7/nQ/GY3ux9yFPrwIDAQAB",
+   "manifest_version": 3,
+   "name": "ApeMasivo",
+   "permissions": [ "tabs", "storage", "scripting", "activeTab", "unlimitedStorage" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "6.3.0",
+   "web_accessible_resources": [ {
+      "matches": [ "https://web.whatsapp.com/*" ],
+      "resources": [ "img/emojis/angry.gif", "img/emojis/care.gif", "img/emojis/haha.gif", "img/emojis/like.gif", "img/emojis/love.gif", "img/emojis/sad.gif", "img/emojis/wow.gif", "img/file-previews/apk.png", "img/file-previews/audio.png", "img/file-previews/excel.png", "img/file-previews/gif.png", "img/file-previews/other.png", "img/file-previews/pdf.png", "img/file-previews/ppt.png", "img/file-previews/text.png", "img/file-previews/video.png", "img/file-previews/word.png", "img/file-previews/zip.png", "img/collaps.svg", "img/128x128.png", "img/pin-poup.png", "img/exe-pin-icon.png", "timeout-worker.js", "page.min.js", "lib.js", "css/page.css", "countries.json" ]
+   } ]
+}
