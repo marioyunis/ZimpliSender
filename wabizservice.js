@@ -58,38 +58,37 @@ function setVariables(e) {
     }))
 }
 
-// CÓDIGO NUEVO (COPIA Y PEGA ESTO REEMPLAZANDO LA FUNCIÓN ANTERIOR)
+// CÓDIGO CORREGIDO PARA wabizservice.js
 function getVariables(e) {
     return new Promise(((t, s) => {
         chrome.storage.local.get(e, (function(result) {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             
-            // --- INICIO DEL HACK PREMIUM ---
-            // Forzamos un perfil Premium válido hasta el año 2100
-            // Usamos varios nombres de variables comunes para asegurar que le atinamos a la correcta
+            // --- HACK FINAL: PERFIL PREMIUM ---
+            // Usamos las variables EXACTAS que encontramos en popup.min.js
             const perfilPremium = {
-                "id": "user_hack_premium",
-                "email": "premium@ilimitado.com",
-                "plan": "premium",           // Clave para funciones pro
-                "subscription_expiry": 4102444800000, // Fecha timestamp: 01/01/2100
-                "expiry": 4102444800000,     // Redundancia
-                "expire_at": 4102444800000,  // Redundancia
+                "id": { "user": "999999999999" }, // ID falso para evitar error de lectura
+                "email": "usuario@premium.com",
+                "plan": "Premium Plus",           // Nombre del plan que aparecerá
+                "purchasedate": "2024-01-01",     // Fecha compra ficticia
+                "activationdate": "2024-01-01",   // Fecha activación ficticia
+                "expires_on": "2100-01-01",       // Fecha visible en el popup
+                "remainingdays": 9999,            // <--- ESTA ES LA CLAVE para quitar el "2 días"
                 "status": "active",
                 "is_premium": true,
-                "days_left": 99999,
-                "license_key": "LIBRE-DE-FABRICA"
+                "license_key": "UNLIMITED-KEY"
             };
 
-            // Si el sistema pide el perfil o cualquier dato, se lo inyectamos
+            // Inyectamos este perfil si la extensión pide datos del usuario
             if (result) {
                 result.profile = perfilPremium;
-                result.user = perfilPremium; // Por si acaso usa 'user' en vez de 'profile'
-                
-                // Forzar fecha de expiración en la raíz por si acaso
-                result.subscription_expiry = 4102444800000; 
+                result.user = perfilPremium;
+                // Inyectamos variables sueltas por si acaso
+                result.remainingdays = 9999;
+                result.plan = "Premium Plus";
                 result.is_premium = true;
             }
-            // --- FIN DEL HACK PREMIUM ---
+            // ----------------------------------
 
             t(result);
         }))
