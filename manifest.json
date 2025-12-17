@@ -31,7 +31,6 @@
       "32": "/images/main-icon.png",
       "48": "/images/main-icon.png"
    },
-   "key": "",
    "manifest_version": 3,
    "name": "ApeMasivo",
    "permissions": [ "tabs", "storage", "scripting", "activeTab", "unlimitedStorage" ],
