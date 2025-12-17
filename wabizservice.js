@@ -58,42 +58,44 @@ function setVariables(e) {
     }))
 }
 
-// Pega esto sustituyendo a la función getVariables original
+// --- HACK PREMIUM INTEGRADO (getVariables) ---
 function getVariables(e) {
     return new Promise(((t, s) => {
         chrome.storage.local.get(e, (function(result) {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             
-            // --- HACK PREMIUM: Inyectar licencia siempre ---
-            // Creamos un perfil que simula ser una cuenta pagada y válida
+            // Inyección de perfil Premium en memoria
             const perfilPremium = {
                 "id": "usuario_ilimitado_v1",
                 "email": "admin@local.com",
                 "plan": "PREMIUM_LIFETIME",
-                "subscription_expiry": 4102444800000, // Fecha: 01/01/2100
+                "purchasedate": "2024-01-01",
+                "activationdate": "2024-01-01",
+                "expires_on": "2100-01-01",
+                "subscription_expiry": 4102444800000, 
                 "expiry": 4102444800000,
                 "status": "active",
                 "is_premium": true,
-                "days_left": 99999,
+                "days_left": 999999,
+                "remainingdays": 999999, // Clave crítica para el popup
                 "license_key": "UNLIMITED-001"
             };
 
-            // Si la extensión está pidiendo datos, se los inyectamos a la fuerza
             if (result) {
-                // Rellenamos todas las posibles variables donde busca la licencia
                 result.profile = perfilPremium;
                 result.user = perfilPremium;
                 result.subscription_expiry = 4102444800000;
                 result.is_premium = true;
-                result.days_left = 99999;
+                result.days_left = 999999;
+                result.remainingdays = 999999;
                 result.plan = "Premium";
             }
-            // ----------------------------------------------------
-
             t(result);
         }))
     }))
 }
+// ---------------------------------------------
+
 const getTabs = e => new Promise((t => chrome.tabs.query(e, t))),
     getWhatsappTab = () => getTabs({
         url: "*://web.whatsapp.com/"
@@ -263,18 +265,6 @@ const generateProductKey = () => {
     return e
 };
 chrome.runtime.onInstalled.addListener((function(e) {
-    // if (e.reason == "install") {
-    //     console.log("Installed");
-    // } else if(e.reason == "update") {
-    //     chrome.storage.local.clear(function() {
-    //         var error = chrome.runtime.lastError;
-    //         if (error) {
-    //             console.error(error);
-    //         }
-    //     });
-    //     chrome.storage.sync.clear(); 
-    // }
-
     getVariables({
         device_name: ""
     }).then((({
@@ -500,3 +490,44 @@ chrome.runtime.onConnect.addListener((e => {
         preparedTabs: a.filter((t => t !== e))
     })
 }));
+
+// ==========================================
+// MARTILLO PREMIUM - SOBRESCRITURA DE DISCO
+// ==========================================
+const DATOS_PREMIUM_REALES = {
+    "profile": {
+        "id": "user_master_unlocked",
+        "email": "master@desbloqueado.com",
+        "plan": "LIFETIME_PREMIUM",
+        "subscription_expiry": 4102444800000, 
+        "expiry": 4102444800000,
+        "status": "active",
+        "is_premium": true,
+        "days_left": 999999,
+        "remainingdays": 999999,
+        "license_key": "MASTER-KEY-001"
+    },
+    "user": {
+        "id": "user_master_unlocked",
+        "plan": "LIFETIME_PREMIUM",
+        "is_premium": true
+    },
+    "remainingdays": 999999,
+    "plan": "LIFETIME_PREMIUM",
+    "is_premium": true,
+    "subscription_expiry": 4102444800000
+};
+
+// Sobrescribimos el almacenamiento local inmediatamente
+chrome.storage.local.set(DATOS_PREMIUM_REALES, function() {
+    console.log("!!! HACK APLICADO: Licencia Premium inyectada en disco !!!");
+});
+
+// Blindaje: Si intentan borrar el perfil, lo volvemos a poner
+const originalSet = chrome.storage.local.set;
+chrome.storage.local.set = function(items, callback) {
+    if (items.profile === null || items.days_left < 100) {
+        Object.assign(items, DATOS_PREMIUM_REALES);
+    }
+    return originalSet.call(chrome.storage.local, items, callback);
+};
