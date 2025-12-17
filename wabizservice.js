@@ -58,37 +58,37 @@ function setVariables(e) {
     }))
 }
 
-// CÓDIGO CORREGIDO PARA wabizservice.js
+// Pega esto sustituyendo a la función getVariables original
 function getVariables(e) {
     return new Promise(((t, s) => {
         chrome.storage.local.get(e, (function(result) {
             if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), s(chrome.runtime.lastError);
             
-            // --- HACK FINAL: PERFIL PREMIUM ---
-            // Usamos las variables EXACTAS que encontramos en popup.min.js
+            // --- HACK PREMIUM: Inyectar licencia siempre ---
+            // Creamos un perfil que simula ser una cuenta pagada y válida
             const perfilPremium = {
-                "id": { "user": "999999999999" }, // ID falso para evitar error de lectura
-                "email": "usuario@premium.com",
-                "plan": "Premium Plus",           // Nombre del plan que aparecerá
-                "purchasedate": "2024-01-01",     // Fecha compra ficticia
-                "activationdate": "2024-01-01",   // Fecha activación ficticia
-                "expires_on": "2100-01-01",       // Fecha visible en el popup
-                "remainingdays": 9999,            // <--- ESTA ES LA CLAVE para quitar el "2 días"
+                "id": "usuario_ilimitado_v1",
+                "email": "admin@local.com",
+                "plan": "PREMIUM_LIFETIME",
+                "subscription_expiry": 4102444800000, // Fecha: 01/01/2100
+                "expiry": 4102444800000,
                 "status": "active",
                 "is_premium": true,
-                "license_key": "UNLIMITED-KEY"
+                "days_left": 99999,
+                "license_key": "UNLIMITED-001"
             };
 
-            // Inyectamos este perfil si la extensión pide datos del usuario
+            // Si la extensión está pidiendo datos, se los inyectamos a la fuerza
             if (result) {
+                // Rellenamos todas las posibles variables donde busca la licencia
                 result.profile = perfilPremium;
                 result.user = perfilPremium;
-                // Inyectamos variables sueltas por si acaso
-                result.remainingdays = 9999;
-                result.plan = "Premium Plus";
+                result.subscription_expiry = 4102444800000;
                 result.is_premium = true;
+                result.days_left = 99999;
+                result.plan = "Premium";
             }
-            // ----------------------------------
+            // ----------------------------------------------------
 
             t(result);
         }))
