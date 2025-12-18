@@ -1,4 +1,4 @@
-// inyector.js - VERSIÓN MAESTRA: GRUPOS + CHATS + LIDs
+// inyector.js - VERSIÓN MAESTRA V2 (Grupos y Chats con Nombres Completos)
 (() => {
     // Utilitarios de log
     const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 11px; padding: 2px");
@@ -6,30 +6,19 @@
 
     /**
      * FUNCIÓN MAESTRA PARA DESCIFRAR NÚMEROS
-     * Busca el teléfono real en 3 lugares:
-     * 1. Propiedad interna __x_phoneNumber (La más fiable para LIDs).
-     * 2. Traducción de WAPI (getPhoneNumber).
-     * 3. ID de usuario por defecto.
      */
     async function obtenerTelefonoReal(idObject, contactObj) {
-        let numero = idObject.user; // Valor por defecto
+        let numero = idObject.user; 
 
-        // Solo nos esforzamos si es un LID (Código oculto)
         if (idObject.server === 'lid' || idObject._serialized.includes('@lid')) {
-            
-            // ESTRATEGIA 1: Buscar en el objeto contacto (Memoria RAM)
             if (contactObj) {
                 const data = contactObj.__x_phoneNumber || contactObj.phoneNumber;
                 if (data && data.user) return data.user;
             }
-
-            // ESTRATEGIA 2: Preguntar a la base de datos de WhatsApp
             try {
                 const res = await window.WPP.contact.getPhoneNumber(idObject._serialized);
                 if (res && res.user) return res.user;
-            } catch (e) {
-                // Si falla, seguimos con el ID original
-            }
+            } catch (e) {}
         }
         return numero;
     }
@@ -39,7 +28,7 @@
         if (!event.data || !event.data.type) return;
 
         // ==========================================
-        // CASO 1: LISTAR LOS GRUPOS (Para el Combo)
+        // CASO 1: LISTAR LOS GRUPOS
         // ==========================================
         if (event.data.type === "EXTRAER_GRUPOS_AHORA") {
             if (!window.WPP || !window.WPP.isReady) { logErr("WPP no está listo. Recarga la página."); return; }
@@ -54,7 +43,7 @@
         }
 
         // ==========================================
-        // CASO 2: EXTRAER PARTICIPANTES (GRUPOS) - REPARADO
+        // CASO 2: EXTRAER PARTICIPANTES (GRUPOS) - MEJORADO
         // ==========================================
         if (event.data.type === "EXTRAER_PARTICIPANTES") {
             const { idGrupo, nombreGrupo } = event.data;
@@ -63,25 +52,29 @@
             if (!window.WPP) return;
 
             try {
-                // 1. Obtenemos participantes
                 const participantes = await window.WPP.group.getParticipants(idGrupo);
                 log(`Encontrados ${participantes.length} miembros.`);
 
                 const listaFinal = [];
 
-                // 2. Procesamos cada miembro
                 for (const p of participantes) {
-                    // Optimizamos: Usamos p.contact si existe, si no, lo pedimos (pero es lento)
+                    // Obtenemos contacto completo
                     let contacto = p.contact;
                     if (!contacto) {
                         try { contacto = await window.WPP.contact.getContact(p.id._serialized); } catch(e){}
                     }
 
-                    // Desciframos el teléfono usando la función maestra
+                    // 1. Teléfono Real
                     const telefono = await obtenerTelefonoReal(p.id, contacto);
+
+                    // 2. Nombres (Nueva Lógica)
+                    const nombreAgendado = (contacto && (contacto.name || contacto.formattedName)) ? contacto.name || contacto.formattedName : "No Agendado";
+                    const nickname = (contacto && contacto.pushname) ? contacto.pushname : "";
 
                     listaFinal.push({
                         "Grupo": nombreGrupo,
+                        "Nombre Contacto": nombreAgendado,
+                        "Nickname": nickname,
                         "Teléfono": "+" + telefono,
                         "Admin": p.isAdmin ? "SI" : "NO",
                         "SuperAdmin": p.isSuperAdmin ? "SI" : "NO"
@@ -90,7 +83,6 @@
 
                 log(`✅ Procesado completo: ${listaFinal.length} registros.`);
                 
-                // Enviamos al Popup
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
                     detail: { datos: listaFinal, tipo: "Grupo" } 
                 }));
@@ -102,14 +94,13 @@
         }
 
         // ==========================================
-        // CASO 3: EXTRAER TODOS MIS CHATS (LEADS)
+        // CASO 3: EXTRAER TODOS MIS CHATS
         // ==========================================
         if (event.data.type === "EXTRAER_CHATS_AHORA") {
             log("📂 Iniciando extracción masiva de chats...");
             
             try {
                 const allChats = await window.WPP.chat.list();
-                // Filtramos solo chats de usuarios (no grupos, no listas)
                 const userChats = allChats.filter(c => !c.isGroup && !c.isBroadcast && c.id.server !== 'broadcast');
                 
                 log(`Encontrados ${userChats.length} chats personales.`);
@@ -117,7 +108,6 @@
                 const listaFinal = [];
 
                 for (const chat of userChats) {
-                    // Obtenemos contacto asociado
                     let contacto = chat.contact;
                     if (!contacto) {
                         try { contacto = await window.WPP.contact.getContact(chat.id._serialized); } catch(e){}
@@ -125,7 +115,6 @@
 
                     const telefono = await obtenerTelefonoReal(chat.id, contacto);
                     
-                    // Lógica de nombres
                     const nombreAgendado = (contacto && (contacto.name || contacto.formattedName)) ? contacto.name || contacto.formattedName : "No Agendado";
                     const nickname = (contacto && contacto.pushname) ? contacto.pushname : (chat.pushname || "");
 
