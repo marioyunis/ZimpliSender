@@ -279,46 +279,43 @@ const generateProductKey = () => {
 };
 
 // ----------------------------------------------------
-// EL VIGILANTE: MONITOR DE CAMBIOS (CÓDIGO NUEVO)
+// EL VIGILANTE: MODO CAZA-FANTASMAS (AUTOMÁTICO)
 // ----------------------------------------------------
-// Si CUALQUIER script (popup, content, etc) cambia los datos
-// a algo que no sea Premium, lo revertimos inmediatamente.
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local') {
-        let revertir = false;
-        
-        // 1. ¿Alguien tocó el perfil?
-        if (changes.profile) {
+        // ¿Alguien tocó el perfil?
+        if (changes.profile && changes.profile.newValue) {
             const nuevo = changes.profile.newValue;
-            // Si lo pusieron en null, undefined, o le quitaron el premium
-            if (!nuevo || !nuevo.is_premium || nuevo.days_left < 9000) {
-                console.log("!!! INTENTO DE BORRADO DE LICENCIA DETECTADO Y BLOQUEADO !!!");
-                revertir = true;
+            
+            // Si detectamos un perfil "malo" (menos de 9000 días o no premium)
+            if (!nuevo.is_premium || nuevo.days_left < 9000) {
+                
+                // 1. IMPRIMIMOS LA EVIDENCIA (Para que la copies luego)
+                console.group("🚨 ¡CAPTURA AUTOMÁTICA DEL ENEMIGO!");
+                console.log("Hora exacta:", new Date().toLocaleTimeString());
+                console.log("DATOS QUE INTENTÓ ESCRIBIR:", JSON.stringify(nuevo, null, 4));
+                console.groupEnd();
+
+                // 2. CONTRATAQUE INMEDIATO (Restaurar Premium)
+                chrome.storage.local.set({
+                    profile: PERFIL_PREMIUM_ETERNO,
+                    user: PERFIL_PREMIUM_ETERNO,
+                    remainingdays: 999999,
+                    days_left: 999999,
+                    is_premium: true,
+                    plan: "LIFETIME_PREMIUM"
+                });
             }
         }
         
-        // 2. ¿Alguien tocó los días restantes?
-        if (changes.remainingdays) {
-            if (!changes.remainingdays.newValue || changes.remainingdays.newValue < 9000) {
-                 console.log("!!! INTENTO DE CAMBIO DE DÍAS DETECTADO Y BLOQUEADO !!!");
-                 revertir = true;
-            }
-        }
-
-        // SI DETECTAMOS SABOTAJE, RESTAURAMOS TODO
-        if (revertir) {
-            chrome.storage.local.set({
-                profile: PERFIL_PREMIUM_ETERNO,
-                user: PERFIL_PREMIUM_ETERNO,
-                remainingdays: 999999,
-                days_left: 999999,
-                is_premium: true,
-                plan: "LIFETIME_PREMIUM"
-            });
+        // ¿Alguien tocó los días sueltos?
+        if (changes.remainingdays && changes.remainingdays.newValue < 9000) {
+             console.log("🚨 INTENTO DE CAMBIAR DÍAS A:", changes.remainingdays.newValue);
+             // Restaurar días
+             chrome.storage.local.set({ remainingdays: 999999, days_left: 999999 });
         }
     }
 });
-// ----------------------------------------------------
 
 chrome.runtime.onInstalled.addListener((function(e) {
     getVariables({
