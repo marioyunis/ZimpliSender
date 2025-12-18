@@ -38,10 +38,14 @@
                 
                 log(`✅ WAPI respondió: ${participantes.length} participantes encontrados.`);
 
+                // ... dentro del inyector.js ...
+
                 // 3. Limpieza de datos
                 const listaLimpia = participantes.map(p => ({
                     grupo: nombreGrupo,
-                    telefono: p.id.user // El número limpio
+                    // ANTES: telefono: p.id.user 
+                    // AHORA (Con el truco del +):
+                    telefono: "+" + p.id.user 
                 }));
 
                 // 4. Enviar de vuelta
