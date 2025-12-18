@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "OLAS Whatsapp Extractor PRO",
+  "name": "OLAS Extractor PRO",
   "version": "3.0",
   "description": "Herramienta de extracción de contactos y grupos para OLAS.",
   "permissions": ["activeTab", "scripting", "storage"],
