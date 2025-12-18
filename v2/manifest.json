@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Mi Sender Pro - Extractor",
+  "version": "2.0",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://web.whatsapp.com/*"],
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+  {
+    "resources": ["wppconnect-wa.js", "inyector.js"],
+    "matches": ["https://web.whatsapp.com/*"]
+  }
+]
+}
