@@ -1,98 +1,84 @@
-// popup.js - GENERADOR DE EXCEL (.xlsx)
+// popup.js - VERSIÓN FINAL (Grupos + Chats)
 
-// 1. Botón Cargar Grupos
+// --- LÓGICA DE GRUPOS (EXISTENTE) ---
 document.getElementById('btnCargar').addEventListener('click', () => {
-    const status = document.getElementById('status');
-    status.innerText = "Conectando...";
-    status.style.color = "orange";
-    
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { accion: "pedir_grupos" });
-    });
+    msg("Escaneando memoria...", "orange");
+    enviarAlTab({ accion: "pedir_grupos" });
 });
 
-// 2. Botón Extraer
 document.getElementById('btnExtraer').addEventListener('click', () => {
     const select = document.getElementById('listaGrupos');
-    const idGrupo = select.value;
-    const nombreGrupo = select.options[select.selectedIndex].text;
-    const status = document.getElementById('status');
-
-    if (!idGrupo) {
-        status.innerText = "❌ Selecciona un grupo primero";
-        return;
-    }
-
-    status.innerText = "⏳ Extrayendo contactos...";
-    status.style.color = "blue";
-
-    // Pedimos los datos al content.js
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { 
-            accion: "pedir_participantes",
-            idGrupo: idGrupo,
-            nombreGrupo: nombreGrupo
-        });
+    if (!select.value) { msg("❌ Selecciona un grupo", "red"); return; }
+    msg("⏳ Extrayendo miembros...", "blue");
+    enviarAlTab({ 
+        accion: "pedir_participantes",
+        idGrupo: select.value,
+        nombreGrupo: select.options[select.selectedIndex].text
     });
 });
 
-// 3. Escuchar respuestas
-chrome.runtime.onMessage.addListener((request) => {
-    const status = document.getElementById('status');
+// --- LÓGICA DE CHATS (NUEVA) ---
+document.getElementById('btnExtraerChats').addEventListener('click', () => {
+    msg("⏳ Escaneando todos tus chats...", "#6f42c1");
+    // Enviamos la nueva orden al content.js
+    enviarAlTab({ accion: "pedir_todos_chats" });
+});
 
-    // Llenar el Combobox
+// --- ESCUCHAR RESPUESTAS ---
+chrome.runtime.onMessage.addListener((request) => {
+    // 1. Respuesta de Grupos
     if (request.accion === "datos_grupos") {
-        const grupos = request.datos;
         const select = document.getElementById('listaGrupos');
         select.innerHTML = '<option value="">-- Selecciona un Grupo --</option>';
-        grupos.forEach(g => {
-            const option = document.createElement('option');
-            option.value = g.id; 
-            option.text = g.name; 
-            select.appendChild(option);
+        request.datos.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.id; opt.text = g.name;
+            select.appendChild(opt);
         });
-        status.innerText = `✅ ${grupos.length} grupos cargados.`;
-        status.style.color = "green";
+        msg(`✅ ${request.datos.length} grupos encontrados.`, "green");
         document.getElementById('btnExtraer').style.display = 'block';
     }
 
-    // DESCARGAR EXCEL (MODIFICADO)
+    // 2. Respuesta de Excel (Sirve para grupos y chats)
     if (request.accion === "descargar_csv") {
-        const datos = request.datos; // Array original {grupo, telefono}
-        status.innerText = `✅ Generando Excel (${datos.length} filas)...`;
-        
-        generarExcel(datos);
+        const datos = request.datos; 
+        const tipo = request.tipo || "Reporte";
+        msg(`✅ Generando Excel (${datos.length} filas)...`, "green");
+        generarExcel(datos, tipo);
     }
 });
 
-// --- FUNCIÓN MAESTRA PARA EXCEL ---
-function generarExcel(datos) {
+// --- FUNCIONES AUXILIARES ---
+function msg(texto, color) {
+    const s = document.getElementById('status');
+    s.innerText = texto; s.style.color = color || "#666";
+}
+
+function enviarAlTab(mensaje) {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, mensaje);
+    });
+}
+
+function generarExcel(datos, prefijoNombre) {
     try {
-        // 1. Preparamos los datos para que tengan títulos de columna bonitos
-        const datosFormateados = datos.map(item => ({
-            "Nombre del Grupo": item.grupo,
-            "Número de Teléfono": item.telefono
-        }));
+        // Hoja de trabajo
+        const hoja = XLSX.utils.json_to_sheet(datos);
+        
+        // Ajuste automático de ancho de columnas
+        const colAnchos = Object.keys(datos[0] || {}).map(k => ({ wch: 25 }));
+        hoja["!cols"] = colAnchos;
 
-        // 2. Crear una Hoja de trabajo (Worksheet)
-        const hoja = XLSX.utils.json_to_sheet(datosFormateados);
-
-        // 3. Ajustar ancho de columnas automáticamente (Opcional, estética)
-        const anchoMax = datosFormateados.reduce((w, r) => Math.max(w, r["Nombre del Grupo"].length), 10);
-        hoja["!cols"] = [ { wch: anchoMax + 5 }, { wch: 20 } ];
-
-        // 4. Crear un Libro de trabajo (Workbook)
+        // Libro
         const libro = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(libro, hoja, "Participantes");
+        XLSX.utils.book_append_sheet(libro, hoja, "Contactos");
 
-        // 5. Descargar el archivo .xlsx
+        // Descarga
         const fecha = new Date().toISOString().slice(0,10);
-        XLSX.writeFile(libro, `Reporte_Grupo_${fecha}.xlsx`);
-
-        document.getElementById('status').innerText = "✅ ¡Descarga completada!";
-
-    } catch (error) {
-        console.error("Error generando Excel:", error);
-        document.getElementById('status').innerText = "❌ Error creando archivo Excel";
+        XLSX.writeFile(libro, `${prefijoNombre}_${fecha}.xlsx`);
+        msg("✅ ¡Descarga completada!", "green");
+    } catch (e) {
+        console.error(e);
+        msg("❌ Error creando Excel", "red");
     }
 }

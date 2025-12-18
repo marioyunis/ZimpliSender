@@ -8,27 +8,40 @@
         label { display: block; margin-bottom: 5px; font-size: 12px; color: #555; font-weight: bold; }
         select { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; background: white; }
         button { width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; margin-bottom: 5px; }
+        
         .btn-cargar { background: #25D366; color: white; }
         .btn-cargar:hover { background: #128C7E; }
+        
         .btn-extraer { background: #007bff; color: white; display: none; }
         .btn-extraer:hover { background: #0056b3; }
+
+        /* Nueva clase para el botón de chats */
+        .btn-chats { background: #6f42c1; color: white; margin-top: 15px; }
+        .btn-chats:hover { background: #5a32a3; }
+
+        .divider { border-top: 1px dashed #ccc; margin: 15px 0; }
+        
         #status { margin-top: 10px; font-size: 11px; color: #666; text-align: center; min-height: 20px;}
         .footer { font-size: 10px; color: #aaa; text-align: center; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <h3>OLAS Extractor Excel Pro</h3>
+    <h3>🤖 Extractor Pro</h3>
     
-    <label for="listaGrupos">Seleccionar Grupo:</label>
+    <label for="listaGrupos">Exportar Grupo:</label>
     <select id="listaGrupos">
-        <option value="">-- Esperando carga --</option>
+        <option value="">-- Cargar Grupos --</option>
     </select>
 
-    <button id="btnCargar" class="btn-cargar"> Cargar Grupos</button>
-    <button id="btnExtraer" class="btn-extraer"> Descargar Excel (.xlsx)</button>
+    <button id="btnCargar" class="btn-cargar">🔄 Cargar Grupos</button>
+    <button id="btnExtraer" class="btn-extraer">📊 Descargar Grupo (.xlsx)</button>
+
+    <div class="divider"></div>
+    <label>Exportar Todos mis Chats:</label>
+    <button id="btnExtraerChats" class="btn-chats">📂 Descargar Todos los Contactos</button>
 
     <div id="status">Listo para conectar</div>
-    <div class="footer">Zettalab Technologies</div>
+    <div class="footer">Sistema In-House v3.0</div>
 
     <script src="xlsx.mini.min.js"></script>
     <script src="popup.js"></script>

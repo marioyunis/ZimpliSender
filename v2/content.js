@@ -1,7 +1,7 @@
-// content.js - VERSIÓN PUENTE COMPLETO
-console.log("[Content] Puente activo.");
+// content.js
+console.log("[Content] Puente activo v3.0");
 
-// Inyección (Ya la tienes, pero la repito por seguridad)
+// Inyección de scripts
 const scriptLib = document.createElement('script');
 scriptLib.src = chrome.runtime.getURL('wppconnect-wa.js');
 scriptLib.onload = function() {
@@ -13,29 +13,33 @@ scriptLib.onload = function() {
 };
 (document.head || document.documentElement).appendChild(scriptLib);
 
-// --- COMUNICACIÓN DE IDA (Popup -> Inyector) ---
+// --- ESCUCHAR AL POPUP ---
 chrome.runtime.onMessage.addListener((request) => {
     if (request.accion === "pedir_grupos") {
         window.postMessage({ type: "EXTRAER_GRUPOS_AHORA" }, "*");
     }
-    
-    // ESTE BLOQUE ES CRÍTICO. ¿Lo tenías?
     if (request.accion === "pedir_participantes") {
-        console.log("[Content] Pasando orden de extracción al Inyector...");
         window.postMessage({ 
             type: "EXTRAER_PARTICIPANTES",
             idGrupo: request.idGrupo,
             nombreGrupo: request.nombreGrupo
         }, "*");
     }
+    // NUEVA ORDEN
+    if (request.accion === "pedir_todos_chats") {
+        window.postMessage({ type: "EXTRAER_CHATS_AHORA" }, "*");
+    }
 });
 
-// --- COMUNICACIÓN DE VUELTA (Inyector -> Popup) ---
+// --- ESCUCHAR AL INYECTOR ---
 window.addEventListener("WA_GRUPOS_EXTRAIDOS", (e) => {
     chrome.runtime.sendMessage({ accion: "datos_grupos", datos: e.detail });
 });
 
 window.addEventListener("WA_DATOS_LISTOS_PARA_CSV", (e) => {
-    console.log("[Content] Datos recibidos para Excel. Enviando al Popup...");
-    chrome.runtime.sendMessage({ accion: "descargar_csv", datos: e.detail });
+    chrome.runtime.sendMessage({ 
+        accion: "descargar_csv", 
+        datos: e.detail.datos,
+        tipo: e.detail.tipo // Para nombrar el archivo distinto
+    });
 });
