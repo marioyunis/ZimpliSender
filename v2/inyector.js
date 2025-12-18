@@ -1,4 +1,4 @@
-// inyector.js - VERSIÓN TRADUCTORA DE LIDs
+// inyector.js - VERSIÓN FINAL CON TRADUCTOR DE LIDs
 (() => {
     const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 12px; padding: 2px");
     const logErr = (msg) => console.log(`%c [Inyector ERROR] ${msg}`, "color: white; background: red; font-size: 12px");
@@ -19,52 +19,52 @@
             } catch (e) { logErr("Error listando grupos: " + e.message); }
         }
 
-        // --- CASO 2: EXTRAER PARTICIPANTES (CON TRADUCCIÓN) ---
+        // --- CASO 2: EXTRAER PARTICIPANTES ---
         if (event.data.type === "EXTRAER_PARTICIPANTES") {
             const { idGrupo, nombreGrupo } = event.data;
-            log(`Extrayendo y descifrando participantes de: '${nombreGrupo}'...`);
+            log(`Procesando participantes de: '${nombreGrupo}'`);
             
-            if (!window.WPP) return;
+            if (!window.WPP) { logErr("WPP no existe"); return; }
 
             try {
-                // 1. Obtenemos participantes (pueden venir mezclados: teléfonos reales y LIDs)
+                // 1. Obtenemos participantes (mezcla de LIDs y teléfonos)
                 const participantes = await window.WPP.group.getParticipants(idGrupo);
-                
-                // 2. Procesamos UNO POR UNO para traducir los LIDs
-                // Usamos Promise.all porque la traducción es asíncrona
+                log(`Total participantes: ${participantes.length}. Iniciando traducción...`);
+
+                // 2. TRADUCCIÓN ASÍNCRONA (Promise.all)
+                // Usamos 'map' asíncrono para preguntar uno por uno el número real
                 const listaLimpia = await Promise.all(participantes.map(async (p) => {
-                    let numeroReal = p.id.user; // Por defecto asumimos que es el número
-                    
-                    // DETECCIÓN DE LID: Si es un ID de privacidad, lo traducimos
+                    let numeroReal = p.id.user;
+
+                    // Si detectamos que es un LID (código oculto)
                     if (p.id.server === 'lid' || p.id._serialized.includes('@lid')) {
                         try {
-                            // Función mágica de WPPConnect para buscar el teléfono real
-                            const mapping = await WPP.contact.getPhoneNumber(p.id);
-                            if (mapping && mapping.user) {
-                                numeroReal = mapping.user;
-                                // log(`Traducción: LID ${p.id.user} -> TEL ${numeroReal}`);
+                            // Consultamos a la base de datos interna de WA
+                            const result = await window.WPP.contact.getPhoneNumber(p.id._serialized);
+                            if (result && result.user) {
+                                numeroReal = result.user;
                             }
                         } catch (err) {
-                            // Si falla la traducción, nos quedamos con el ID (mejor que nada)
                             console.warn("No se pudo traducir LID:", p.id.user);
                         }
                     }
 
                     return {
                         grupo: nombreGrupo,
-                        telefono: "+" + numeroReal // Agregamos el + para Excel
+                        telefono: "+" + numeroReal // Formato para Excel
                     };
                 }));
 
-                log(`✅ Finalizado: ${listaLimpia.length} contactos procesados.`);
+                log(`✅ Traducción finalizada.`);
 
+                // 3. Enviar datos listos
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
                     detail: listaLimpia 
                 }));
 
             } catch (e) {
-                logErr("❌ ERROR: " + e.message);
-                console.error(e);
+                logErr("❌ Error: " + e.message);
+                alert("Error extrayendo: " + e.message);
             }
         }
     });
