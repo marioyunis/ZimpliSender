@@ -130,7 +130,7 @@
         }
 
         // ==========================================
-        // CASO 3: EXTRAER CHATS (CRM)
+        // CASO 3: EXTRAER CHATS 
         // ==========================================
         if (event.data.type === "EXTRAER_CHATS_AHORA") {
             log("🚀 Iniciando extracción OLAS PRO...");
