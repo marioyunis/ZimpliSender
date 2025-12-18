@@ -1,4 +1,4 @@
-// inyector.js - VERSIÓN 4.0 (CHATS + GRUPOS + ETIQUETAS)
+// inyector.js - VERSIÓN MAESTRA V2 (Grupos y Chats con Nombres Completos)
 (() => {
     // Utilitarios de log
     const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 11px; padding: 2px");
@@ -9,6 +9,7 @@
      */
     async function obtenerTelefonoReal(idObject, contactObj) {
         let numero = idObject.user; 
+
         if (idObject.server === 'lid' || idObject._serialized.includes('@lid')) {
             if (contactObj) {
                 const data = contactObj.__x_phoneNumber || contactObj.phoneNumber;
@@ -26,9 +27,11 @@
     window.addEventListener("message", async (event) => {
         if (!event.data || !event.data.type) return;
 
+        // ==========================================
         // CASO 1: LISTAR LOS GRUPOS
+        // ==========================================
         if (event.data.type === "EXTRAER_GRUPOS_AHORA") {
-            if (!window.WPP || !window.WPP.isReady) { logErr("WPP no listo."); return; }
+            if (!window.WPP || !window.WPP.isReady) { logErr("WPP no está listo. Recarga la página."); return; }
             try {
                 const chats = await window.WPP.chat.list();
                 const grupos = chats.filter(c => c.isGroup).map(g => ({
@@ -39,22 +42,32 @@
             } catch (e) { logErr("Error listando grupos: " + e.message); }
         }
 
-        // CASO 2: EXTRAER PARTICIPANTES (GRUPOS)
+        // ==========================================
+        // CASO 2: EXTRAER PARTICIPANTES (GRUPOS) - MEJORADO
+        // ==========================================
         if (event.data.type === "EXTRAER_PARTICIPANTES") {
             const { idGrupo, nombreGrupo } = event.data;
             log(`👥 Analizando Grupo: '${nombreGrupo}'...`);
+            
             if (!window.WPP) return;
 
             try {
                 const participantes = await window.WPP.group.getParticipants(idGrupo);
+                log(`Encontrados ${participantes.length} miembros.`);
+
                 const listaFinal = [];
 
                 for (const p of participantes) {
+                    // Obtenemos contacto completo
                     let contacto = p.contact;
-                    if (!contacto) try { contacto = await window.WPP.contact.getContact(p.id._serialized); } catch(e){}
+                    if (!contacto) {
+                        try { contacto = await window.WPP.contact.getContact(p.id._serialized); } catch(e){}
+                    }
+
+                    // 1. Teléfono Real
                     const telefono = await obtenerTelefonoReal(p.id, contacto);
 
-                    // Nombres
+                    // 2. Nombres (Nueva Lógica)
                     const nombreAgendado = (contacto && (contacto.name || contacto.formattedName)) ? contacto.name || contacto.formattedName : "No Agendado";
                     const nickname = (contacto && contacto.pushname) ? contacto.pushname : "";
 
@@ -63,80 +76,64 @@
                         "Nombre Contacto": nombreAgendado,
                         "Nickname": nickname,
                         "Teléfono": "+" + telefono,
-                        "Admin": p.isAdmin ? "SI" : "NO"
+                        "Admin": p.isAdmin ? "SI" : "NO",
+                        "SuperAdmin": p.isSuperAdmin ? "SI" : "NO"
                     });
                 }
+
+                log(`✅ Procesado completo: ${listaFinal.length} registros.`);
                 
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
                     detail: { datos: listaFinal, tipo: "Grupo" } 
                 }));
 
-            } catch (e) { logErr("Error grupo: " + e.message); }
+            } catch (e) {
+                logErr("❌ Error extrayendo grupo: " + e.message);
+                console.error(e);
+            }
         }
 
         // ==========================================
-        // CASO 3: EXTRAER CHATS (CON ETIQUETAS)
+        // CASO 3: EXTRAER TODOS MIS CHATS
         // ==========================================
         if (event.data.type === "EXTRAER_CHATS_AHORA") {
-            log("📂 Iniciando extracción de chats con etiquetas...");
+            log("📂 Iniciando extracción masiva de chats...");
             
             try {
-                // 1. OBTENER DICCIONARIO DE ETIQUETAS (ID -> Nombre)
-                // Solo funciona en WhatsApp Business. Si es personal, esto devuelve vacío.
-                let mapaEtiquetas = {};
-                try {
-                    if (window.WPP.label && window.WPP.label.getAllLabels) {
-                        const etiquetas = await window.WPP.label.getAllLabels();
-                        etiquetas.forEach(e => {
-                            mapaEtiquetas[e.id] = e.name; // Ej: '1': 'Nuevo Cliente'
-                        });
-                        log(`📚 Etiquetas cargadas: ${Object.keys(mapaEtiquetas).length}`);
-                    }
-                } catch (err) { console.warn("No se pudieron cargar etiquetas (¿Es cuenta personal?)"); }
-
-                // 2. OBTENER CHATS
                 const allChats = await window.WPP.chat.list();
                 const userChats = allChats.filter(c => !c.isGroup && !c.isBroadcast && c.id.server !== 'broadcast');
                 
-                log(`Procesando ${userChats.length} chats...`);
+                log(`Encontrados ${userChats.length} chats personales.`);
 
                 const listaFinal = [];
 
                 for (const chat of userChats) {
                     let contacto = chat.contact;
-                    if (!contacto) try { contacto = await window.WPP.contact.getContact(chat.id._serialized); } catch(e){}
+                    if (!contacto) {
+                        try { contacto = await window.WPP.contact.getContact(chat.id._serialized); } catch(e){}
+                    }
 
                     const telefono = await obtenerTelefonoReal(chat.id, contacto);
                     
                     const nombreAgendado = (contacto && (contacto.name || contacto.formattedName)) ? contacto.name || contacto.formattedName : "No Agendado";
                     const nickname = (contacto && contacto.pushname) ? contacto.pushname : (chat.pushname || "");
 
-                    // 3. PROCESAR ETIQUETAS DEL CHAT
-                    let etiquetasTexto = "";
-                    if (chat.labels && chat.labels.length > 0) {
-                        // Mapeamos los IDs a Nombres usando el diccionario
-                        etiquetasTexto = chat.labels
-                            .map(id => mapaEtiquetas[id] || id) // Si no encuentra nombre, pone el ID
-                            .join(', '); // Separados por coma
-                    }
-
                     listaFinal.push({
-                        "Etiquetas": etiquetasTexto, // ¡NUEVA COLUMNA PRIMERO!
-                        "Nombre Contacto": nombreAgendado,
-                        "Nickname": nickname,
+                        "Nombre Agendado": nombreAgendado,
+                        "Nickname (Público)": nickname,
                         "Teléfono": "+" + telefono,
                         "Mensajes sin leer": chat.unreadCount
                     });
                 }
 
-                log(`✅ ¡Listo! Enviando datos.`);
+                log(`✅ Procesados ${listaFinal.length} chats.`);
 
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
                     detail: { datos: listaFinal, tipo: "MisChats" } 
                 }));
 
             } catch (e) {
-                logErr("Error en chats: " + e.message);
+                logErr("❌ Error en chats: " + e.message);
                 console.error(e);
             }
         }
