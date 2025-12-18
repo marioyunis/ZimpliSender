@@ -1,7 +1,8 @@
-// inyector.js - VERSIÓN FINAL CON TRADUCTOR DE LIDs
+// inyector.js - VERSIÓN 3.0 (TRADUCTOR MULTI-ESTRATEGIA)
 (() => {
-    const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 12px; padding: 2px");
-    const logErr = (msg) => console.log(`%c [Inyector ERROR] ${msg}`, "color: white; background: red; font-size: 12px");
+    // Utilitarios de log con colores para diferenciar
+    const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 11px; padding: 2px");
+    const logErr = (msg) => console.log(`%c [Inyector ERROR] ${msg}`, "color: white; background: red; font-size: 11px");
 
     window.addEventListener("message", async (event) => {
         if (!event.data || !event.data.type) return;
@@ -19,52 +20,65 @@
             } catch (e) { logErr("Error listando grupos: " + e.message); }
         }
 
-        // --- CASO 2: EXTRAER PARTICIPANTES ---
+        // --- CASO 2: EXTRAER PARTICIPANTES (EL NÚCLEO DEL PROBLEMA) ---
         if (event.data.type === "EXTRAER_PARTICIPANTES") {
             const { idGrupo, nombreGrupo } = event.data;
-            log(`Procesando participantes de: '${nombreGrupo}'`);
+            log(`Analizando grupo: '${nombreGrupo}'...`);
             
-            if (!window.WPP) { logErr("WPP no existe"); return; }
+            if (!window.WPP) return;
 
             try {
-                // 1. Obtenemos participantes (mezcla de LIDs y teléfonos)
                 const participantes = await window.WPP.group.getParticipants(idGrupo);
-                log(`Total participantes: ${participantes.length}. Iniciando traducción...`);
+                log(`Encontrados ${participantes.length} miembros. Iniciando descifrado de LIDs...`);
 
-                // 2. TRADUCCIÓN ASÍNCRONA (Promise.all)
-                // Usamos 'map' asíncrono para preguntar uno por uno el número real
-                const listaLimpia = await Promise.all(participantes.map(async (p) => {
-                    let numeroReal = p.id.user;
+                // Usamos un bucle for-of para poder usar await cómodamente
+                const listaFinal = [];
 
-                    // Si detectamos que es un LID (código oculto)
-                    if (p.id.server === 'lid' || p.id._serialized.includes('@lid')) {
+                for (const p of participantes) {
+                    let numeroReal = p.id.user; // Empezamos con el ID (aunque sea LID)
+                    let esLid = (p.id.server === 'lid' || p.id._serialized.includes('@lid'));
+
+                    if (esLid) {
                         try {
-                            // Consultamos a la base de datos interna de WA
-                            const result = await window.WPP.contact.getPhoneNumber(p.id._serialized);
+                            // ESTRATEGIA A: getPhoneNumber pasando el Objeto ID (no el string)
+                            let result = await window.WPP.contact.getPhoneNumber(p.id);
+                            
+                            // ESTRATEGIA B: Si falla, buscar en el objeto Contacto completo
+                            if (!result) {
+                                const contact = await window.WPP.contact.getContact(p.id._serialized);
+                                if (contact && contact.phoneNumber) {
+                                    result = contact.phoneNumber;
+                                }
+                            }
+
+                            // Si alguna estrategia funcionó, actualizamos el número
                             if (result && result.user) {
                                 numeroReal = result.user;
+                                // log(`✅ LID descifrado: ...${p.id.user.slice(-4)} -> ${numeroReal}`);
+                            } else {
+                                console.warn(`⚠️ No se pudo traducir el LID: ${p.id.user}`);
                             }
+
                         } catch (err) {
-                            console.warn("No se pudo traducir LID:", p.id.user);
+                            console.error("Error intentando traducir LID:", err);
                         }
                     }
 
-                    return {
+                    listaFinal.push({
                         grupo: nombreGrupo,
-                        telefono: "+" + numeroReal // Formato para Excel
-                    };
-                }));
+                        telefono: "+" + numeroReal // Formato para que Excel no lo rompa
+                    });
+                }
 
-                log(`✅ Traducción finalizada.`);
+                log(`✅ Proceso terminado. Enviando ${listaFinal.length} registros.`);
 
-                // 3. Enviar datos listos
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
-                    detail: listaLimpia 
+                    detail: listaFinal 
                 }));
 
             } catch (e) {
-                logErr("❌ Error: " + e.message);
-                alert("Error extrayendo: " + e.message);
+                logErr("❌ ERROR FATAL: " + e.message);
+                console.error(e);
             }
         }
     });
