@@ -1,12 +1,10 @@
-// inyector.js - VERSIÓN 4.0 (CHATS + GRUPOS + ETIQUETAS)
+// inyector.js - VERSIÓN 5.0 (FIX ETIQUETAS + CHATS + GRUPOS)
 (() => {
     // Utilitarios de log
     const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 11px; padding: 2px");
     const logErr = (msg) => console.log(`%c [Inyector ERROR] ${msg}`, "color: white; background: red; font-size: 11px");
 
-    /**
-     * FUNCIÓN MAESTRA PARA DESCIFRAR NÚMEROS
-     */
+    // Función auxiliar para teléfonos (LIDs)
     async function obtenerTelefonoReal(idObject, contactObj) {
         let numero = idObject.user; 
         if (idObject.server === 'lid' || idObject._serialized.includes('@lid')) {
@@ -22,11 +20,10 @@
         return numero;
     }
 
-    // --- LISTENER PRINCIPAL ---
     window.addEventListener("message", async (event) => {
         if (!event.data || !event.data.type) return;
 
-        // CASO 1: LISTAR LOS GRUPOS
+        // --- CASO 1: EXTRAER GRUPOS ---
         if (event.data.type === "EXTRAER_GRUPOS_AHORA") {
             if (!window.WPP || !window.WPP.isReady) { logErr("WPP no listo."); return; }
             try {
@@ -39,7 +36,7 @@
             } catch (e) { logErr("Error listando grupos: " + e.message); }
         }
 
-        // CASO 2: EXTRAER PARTICIPANTES (GRUPOS)
+        // --- CASO 2: EXTRAER PARTICIPANTES (GRUPO) ---
         if (event.data.type === "EXTRAER_PARTICIPANTES") {
             const { idGrupo, nombreGrupo } = event.data;
             log(`👥 Analizando Grupo: '${nombreGrupo}'...`);
@@ -54,7 +51,6 @@
                     if (!contacto) try { contacto = await window.WPP.contact.getContact(p.id._serialized); } catch(e){}
                     const telefono = await obtenerTelefonoReal(p.id, contacto);
 
-                    // Nombres
                     const nombreAgendado = (contacto && (contacto.name || contacto.formattedName)) ? contacto.name || contacto.formattedName : "No Agendado";
                     const nickname = (contacto && contacto.pushname) ? contacto.pushname : "";
 
@@ -74,32 +70,46 @@
             } catch (e) { logErr("Error grupo: " + e.message); }
         }
 
-        // ==========================================
-        // CASO 3: EXTRAER CHATS (CON ETIQUETAS)
-        // ==========================================
+        // --- CASO 3: EXTRAER CHATS (CON ETIQUETAS REPARADAS) ---
         if (event.data.type === "EXTRAER_CHATS_AHORA") {
-            log("📂 Iniciando extracción de chats con etiquetas...");
+            log("📂 Iniciando extracción de chats...");
             
             try {
-                // 1. OBTENER DICCIONARIO DE ETIQUETAS (ID -> Nombre)
-                // Solo funciona en WhatsApp Business. Si es personal, esto devuelve vacío.
+                // ==========================================
+                // 1. DICCIONARIO DE ETIQUETAS (REPARADO)
+                // ==========================================
                 let mapaEtiquetas = {};
                 try {
                     if (window.WPP.label && window.WPP.label.getAllLabels) {
-                        const etiquetas = await window.WPP.label.getAllLabels();
-                        etiquetas.forEach(e => {
-                            mapaEtiquetas[e.id] = e.name; // Ej: '1': 'Nuevo Cliente'
+                        const etiquetasRaw = await window.WPP.label.getAllLabels();
+                        
+                        // LOG DE DEPURACIÓN (Míralo en consola F12)
+                        console.group("🏷️ DEBUG ETIQUETAS ENCONTRADAS");
+                        console.log("Objetos crudos:", etiquetasRaw);
+                        
+                        etiquetasRaw.forEach(e => {
+                            // Guardamos el ID como string para asegurar coincidencia
+                            const idStr = String(e.id); 
+                            mapaEtiquetas[idStr] = e.name;
+                            console.log(`Mapping: ID [${idStr}] = "${e.name}"`);
                         });
-                        log(`📚 Etiquetas cargadas: ${Object.keys(mapaEtiquetas).length}`);
-                    }
-                } catch (err) { console.warn("No se pudieron cargar etiquetas (¿Es cuenta personal?)"); }
+                        console.groupEnd();
 
-                // 2. OBTENER CHATS
+                        log(`✅ Diccionario cargado: ${Object.keys(mapaEtiquetas).length} etiquetas.`);
+                    } else {
+                        console.warn("⚠️ WPP.label no está disponible (¿Es WhatsApp Business?)");
+                    }
+                } catch (err) { 
+                    console.error("Error cargando etiquetas:", err); 
+                }
+
+                // ==========================================
+                // 2. PROCESAR CHATS
+                // ==========================================
                 const allChats = await window.WPP.chat.list();
                 const userChats = allChats.filter(c => !c.isGroup && !c.isBroadcast && c.id.server !== 'broadcast');
                 
                 log(`Procesando ${userChats.length} chats...`);
-
                 const listaFinal = [];
 
                 for (const chat of userChats) {
@@ -111,17 +121,19 @@
                     const nombreAgendado = (contacto && (contacto.name || contacto.formattedName)) ? contacto.name || contacto.formattedName : "No Agendado";
                     const nickname = (contacto && contacto.pushname) ? contacto.pushname : (chat.pushname || "");
 
-                    // 3. PROCESAR ETIQUETAS DEL CHAT
+                    // 3. TRADUCCIÓN DE ETIQUETAS
                     let etiquetasTexto = "";
                     if (chat.labels && chat.labels.length > 0) {
-                        // Mapeamos los IDs a Nombres usando el diccionario
                         etiquetasTexto = chat.labels
-                            .map(id => mapaEtiquetas[id] || id) // Si no encuentra nombre, pone el ID
-                            .join(', '); // Separados por coma
+                            .map(id => {
+                                const idStr = String(id); // Convertimos a texto por si acaso
+                                return mapaEtiquetas[idStr] || `ID:${idStr}`; // Si no halla nombre, pone ID:...
+                            })
+                            .join(', ');
                     }
 
                     listaFinal.push({
-                        "Etiquetas": etiquetasTexto, // ¡NUEVA COLUMNA PRIMERO!
+                        "Etiquetas": etiquetasTexto, 
                         "Nombre Contacto": nombreAgendado,
                         "Nickname": nickname,
                         "Teléfono": "+" + telefono,
@@ -129,7 +141,7 @@
                     });
                 }
 
-                log(`✅ ¡Listo! Enviando datos.`);
+                log(`✅ ¡Listo! ${listaFinal.length} filas generadas.`);
 
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
                     detail: { datos: listaFinal, tipo: "MisChats" } 
