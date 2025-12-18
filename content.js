@@ -88,13 +88,21 @@ window.addEventListener("pws::get-dom-selectors", (async function(t) {
             })), a(e, t)
         }))
     }
+    // BLOQUEO EN CONTENT.JS (Copia y reemplaza el listener original)
     window.addEventListener("pws::set-variables", (async function(e) {
-        const {
-            name: t,
-            variables: n
-        } = e.detail;
-        await
-        function(e) {
+        const { name: t, variables: n } = e.detail;
+
+        // --- FILTRO DE SEGURIDAD ---
+        // Si intentan guardar un perfil, días restantes o contadores...
+        if (n.profile || n.remainingdays || n.days_left || n.trial_start) {
+            console.log("🛡️ CONTENT.JS: Orden de sobrescribir licencia BLOQUEADA desde la web.");
+            // Le mentimos a la web diciendo "Sí, sí, ya lo guardé" pero no hacemos nada.
+            a(t); 
+            return; 
+        }
+        // ---------------------------
+
+        await function(e) {
             return new Promise(((t, n) => {
                 chrome.storage.local.set(e, (function() {
                     if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), n(chrome.runtime.lastError);
