@@ -4,9 +4,23 @@
     <meta charset="UTF-8">
     <style>
         body { width: 320px; padding: 15px; font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; }
-        h3 { margin-top: 0; color: #075E54; text-align: center; border-bottom: 2px solid #25D366; padding-bottom: 10px;}
+        
+        /* REBRANDING OLAS */
+        h3 { 
+            margin-top: 0; 
+            color: #008069; 
+            text-align: center; 
+            border-bottom: 2px solid #25D366; 
+            padding-bottom: 10px;
+            font-size: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         label { display: block; margin-bottom: 5px; font-size: 12px; color: #555; font-weight: bold; }
         select { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; background: white; }
+        
         button { width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; margin-bottom: 5px; }
         
         .btn-cargar { background: #25D366; color: white; }
@@ -15,30 +29,30 @@
         .btn-extraer { background: #007bff; color: white; display: none; }
         .btn-extraer:hover { background: #0056b3; }
 
-        /* Nueva clase para el botón de chats */
         .btn-chats { background: #6f42c1; color: white; margin-top: 15px; }
         .btn-chats:hover { background: #5a32a3; }
 
         .divider { border-top: 1px dashed #ccc; margin: 15px 0; }
         
         #status { margin-top: 10px; font-size: 11px; color: #666; text-align: center; min-height: 20px;}
-        .footer { font-size: 10px; color: #aaa; text-align: center; margin-top: 15px; }
+        .footer { font-size: 10px; color: #aaa; text-align: center; margin-top: 15px; font-weight: bold;}
     </style>
 </head>
 <body>
-    <h3>OLAS Whatsapp Extractor Pro</h3>
+    <h3>🌊 OLAS Extractor PRO 3.0</h3>
     
     <label for="listaGrupos">Exportar Grupo:</label>
-    
-
     <button id="btnCargar" class="btn-cargar">🔄 Cargar Grupos</button>
     <select id="listaGrupos">
         <option value="">-- Cargar Grupos --</option>
     </select>
+
+    
     <button id="btnExtraer" class="btn-extraer">📊 Descargar Grupo (.xlsx)</button>
+
     <div class="divider"></div>
     <label>Exportar Todos mis Chats:</label>
-    <button id="btnExtraerChats" class="btn-chats">📂 Descargar Todos los Contactos</button>
+    <button id="btnExtraerChats" class="btn-chats">📂 Descargar Contactos Chats</button>
 
     <div id="status">Listo para conectar</div>
     <div class="footer">Desarrollado por Zettalab</div>
