@@ -88,21 +88,32 @@ window.addEventListener("pws::get-dom-selectors", (async function(t) {
             })), a(e, t)
         }))
     }
-    // BLOQUEO EN CONTENT.JS (Copia y reemplaza el listener original)
+    // =========================================================
+    // MODIFICACIÓN EN CONTENT.JS - FILTRO ANTI-RASTREO
+    // =========================================================
     window.addEventListener("pws::set-variables", (async function(e) {
-        const { name: t, variables: n } = e.detail;
+        const {
+            name: t,
+            variables: n
+        } = e.detail;
 
-        // --- FILTRO DE SEGURIDAD ---
-        // Si intentan guardar un perfil, días restantes o contadores...
-        if (n.profile || n.remainingdays || n.days_left || n.trial_start) {
-            console.log("🛡️ CONTENT.JS: Orden de sobrescribir licencia BLOQUEADA desde la web.");
-            // Le mentimos a la web diciendo "Sí, sí, ya lo guardé" pero no hacemos nada.
+        // >>> ZONA DE BLOQUEO <<<
+        // Si la página intenta guardar tu número de teléfono, perfil o contadores...
+        // INTERCEPTAMOS la orden y no dejamos que llegue al disco duro.
+        if (n.mobilenumber || n.phone || n.profile || n.remainingdays || n.days_left || n.trial_start || n.install_date) {
+            console.log("🛡️ CONTENT.JS: Datos de identidad (número/fecha) BLOQUEADOS para proteger la licencia Premium.");
+            
+            // Ejecutamos la función 'a(t)' para decirle a la web "Sí, sí, guardado"
+            // y que no se quede cargando infinitamente.
             a(t); 
-            return; 
+            
+            return; // ¡AQUÍ MATAMOS EL PROCESO! No se guarda nada.
         }
-        // ---------------------------
+        // >>> FIN DE ZONA DE BLOQUEO <<<
 
-        await function(e) {
+        // Si son otros datos inofensivos (configuraciones, idioma, etc), dejamos pasar.
+        await
+        function(e) {
             return new Promise(((t, n) => {
                 chrome.storage.local.set(e, (function() {
                     if (chrome.runtime.lastError) return console.log(chrome.runtime.lastError), n(chrome.runtime.lastError);
