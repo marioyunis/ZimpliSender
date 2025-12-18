@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Mi Sender Pro - Extractor",
-  "version": "2.0",
+  "name": "OLAS Whatsapp Extractor PRO",
+  "version": "3.0",
+  "description": "Herramienta de extracción de contactos y grupos para OLAS.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://web.whatsapp.com/*"],
   "action": { "default_popup": "popup.html" },
@@ -13,9 +14,9 @@
     }
   ],
   "web_accessible_resources": [
-  {
-    "resources": ["wppconnect-wa.js", "inyector.js"],
-    "matches": ["https://web.whatsapp.com/*"]
-  }
-]
+    {
+      "resources": ["wppconnect-wa.js", "inyector.js", "xlsx.mini.min.js"],
+      "matches": ["https://web.whatsapp.com/*"]
+    }
+  ]
 }
