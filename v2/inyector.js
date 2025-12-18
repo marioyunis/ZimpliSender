@@ -1,6 +1,5 @@
-// inyector.js - VERSIÓN 3.0 (TRADUCTOR MULTI-ESTRATEGIA)
+// inyector.js - MODO DIAGNÓSTICO PROFUNDO
 (() => {
-    // Utilitarios de log con colores para diferenciar
     const log = (msg) => console.log(`%c [Inyector] ${msg}`, "color: #bada55; background: #222; font-size: 11px; padding: 2px");
     const logErr = (msg) => console.log(`%c [Inyector ERROR] ${msg}`, "color: white; background: red; font-size: 11px");
 
@@ -20,57 +19,83 @@
             } catch (e) { logErr("Error listando grupos: " + e.message); }
         }
 
-        // --- CASO 2: EXTRAER PARTICIPANTES (EL NÚCLEO DEL PROBLEMA) ---
+        // --- CASO 2: EXTRAER PARTICIPANTES ---
         if (event.data.type === "EXTRAER_PARTICIPANTES") {
             const { idGrupo, nombreGrupo } = event.data;
-            log(`Analizando grupo: '${nombreGrupo}'...`);
+            log(`ANALIZANDO GRUPO: '${nombreGrupo}'`);
             
             if (!window.WPP) return;
 
             try {
+                // 1. Obtener participantes
                 const participantes = await window.WPP.group.getParticipants(idGrupo);
-                log(`Encontrados ${participantes.length} miembros. Iniciando descifrado de LIDs...`);
+                log(`Total miembros: ${participantes.length}`);
 
-                // Usamos un bucle for-of para poder usar await cómodamente
+                // 2. DIAGNÓSTICO: Verificamos si existe la función de traducción
+                if (typeof window.WPP.contact.getPhoneNumber !== 'function') {
+                    logErr("⚠️ ALERTA CRÍTICA: La función 'getPhoneNumber' NO EXISTE en esta versión de WAPI.");
+                    // Intentamos buscar alternativas si existen
+                    console.log("Funciones disponibles en WPP.contact:", Object.keys(window.WPP.contact));
+                }
+
                 const listaFinal = [];
+                let contadores = { lids: 0, traducidos: 0, fallidos: 0 };
 
+                // Procesamos uno por uno
                 for (const p of participantes) {
-                    let numeroReal = p.id.user; // Empezamos con el ID (aunque sea LID)
+                    let numeroReal = p.id.user; 
                     let esLid = (p.id.server === 'lid' || p.id._serialized.includes('@lid'));
 
                     if (esLid) {
+                        contadores.lids++;
+                        
+                        // LOG DETALLADO PARA EL PRIMER LID QUE ENCONTREMOS
+                        if (contadores.lids === 1) {
+                            console.group("🔍 INSPECCIÓN DE LID (Primer caso encontrado)");
+                            console.log("Datos crudos del participante:", p);
+                            console.log("ID Serialized:", p.id._serialized);
+                        }
+
                         try {
-                            // ESTRATEGIA A: getPhoneNumber pasando el Objeto ID (no el string)
-                            let result = await window.WPP.contact.getPhoneNumber(p.id);
+                            // INTENTO 1: getPhoneNumber
+                            let result = await window.WPP.contact.getPhoneNumber(p.id._serialized);
                             
-                            // ESTRATEGIA B: Si falla, buscar en el objeto Contacto completo
-                            if (!result) {
+                            if (contadores.lids === 1) console.log("Resultado intento 1 (getPhoneNumber):", result);
+
+                            // INTENTO 2: getContact (Si el 1 falla)
+                            if (!result || !result.user) {
                                 const contact = await window.WPP.contact.getContact(p.id._serialized);
-                                if (contact && contact.phoneNumber) {
-                                    result = contact.phoneNumber;
+                                if (contact) {
+                                     if (contadores.lids === 1) console.log("Resultado intento 2 (getContact):", contact);
+                                     if (contact.phoneNumber) result = contact.phoneNumber;
+                                     // A veces el número está en `contact.id` si el contacto redirige
+                                     if (!result && contact.id && contact.id.server === 'c.us') result = contact.id; 
                                 }
                             }
 
-                            // Si alguna estrategia funcionó, actualizamos el número
+                            // APLICAR RESULTADO
                             if (result && result.user) {
                                 numeroReal = result.user;
-                                // log(`✅ LID descifrado: ...${p.id.user.slice(-4)} -> ${numeroReal}`);
+                                contadores.traducidos++;
                             } else {
-                                console.warn(`⚠️ No se pudo traducir el LID: ${p.id.user}`);
+                                contadores.fallidos++;
+                                if (contadores.lids === 1) console.warn("❌ FALLÓ LA TRADUCCIÓN para este LID");
                             }
+                            
+                            if (contadores.lids === 1) console.groupEnd();
 
                         } catch (err) {
-                            console.error("Error intentando traducir LID:", err);
+                            console.error("Error en traducción:", err);
                         }
                     }
 
                     listaFinal.push({
                         grupo: nombreGrupo,
-                        telefono: "+" + numeroReal // Formato para que Excel no lo rompa
+                        telefono: "+" + numeroReal
                     });
                 }
 
-                log(`✅ Proceso terminado. Enviando ${listaFinal.length} registros.`);
+                log(`RESUMEN: LIDs encontrados: ${contadores.lids} | Traducidos: ${contadores.traducidos} | Fallidos: ${contadores.fallidos}`);
 
                 window.dispatchEvent(new CustomEvent("WA_DATOS_LISTOS_PARA_CSV", { 
                     detail: listaFinal 
